@@ -10,7 +10,7 @@ export function BrainCanvas() {
     <div className="w-screen h-screen">
       <Canvas
         style={{ background: "#ffffff" }}
-        camera={{ position: [0, 0, 10], fov: 50 }}
+        camera={{ position: [0, 0, 2], fov: 50 }}
         gl={async (props) => {
           const renderer = new WebGPURenderer({
             ...props,

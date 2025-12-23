@@ -2,8 +2,8 @@
 
 import { useMemo } from "react";
 import * as THREE from "three";
-import { color as colorNode, float, attribute, smoothstep } from "three/tsl";
-import { LineBasicNodeMaterial } from "three/webgpu";
+import { color as colorNode, float, attribute, smoothstep, length, positionGeometry } from "three/tsl";
+import { LineBasicNodeMaterial, MeshBasicNodeMaterial, MeshLambertNodeMaterial, MeshPhysicalNodeMaterial } from "three/webgpu";
 import { useMaterial } from "@/lib/tsl/use-material";
 import { BranchData, generateBrainGraph, GraphConfig } from "./utils";
 
@@ -76,6 +76,101 @@ function BranchLine({ branch, color, opacity, resolution, isMainBranch }: Branch
   );
 }
 
+interface SubBranchBoxProps {
+  position: THREE.Vector3;
+  rotation: THREE.Euler;
+  color: string;
+  maxRadius: number;
+}
+const boxGeometry = new THREE.BoxGeometry(1, 1, 1)
+// Create the corner/edges geometry ("wireframe" box of just line segments)
+const boxEdgeGeometry = (() => {
+  // Defines unit box corners
+  const vertices = [
+    [-0.5, -0.5, -0.5],
+    [+0.5, -0.5, -0.5],
+    [+0.5, +0.5, -0.5],
+    [-0.5, +0.5, -0.5],
+    [-0.5, -0.5, +0.5],
+    [+0.5, -0.5, +0.5],
+    [+0.5, +0.5, +0.5],
+    [-0.5, +0.5, +0.5],
+  ];
+  // Each pair is an edge between two corners
+  const edges = [
+    [0, 1], [1, 2], [2, 3], [3, 0], // bottom face
+    [4, 5], [5, 6], [6, 7], [7, 4], // top face
+    [0, 4], [1, 5], [2, 6], [3, 7], // vertical edges
+  ];
+  const positions: number[] = [];
+  edges.forEach(([a, b]) => {
+    positions.push(...vertices[a], ...vertices[b]);
+  });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(positions, 3)
+  );
+  return geo;
+})();
+
+
+function SubBranchBox({ position, rotation, color, maxRadius }: SubBranchBoxProps) {
+
+  const material = useMaterial(
+    MeshBasicNodeMaterial,
+    (mat) => {
+
+      // Calculate distance from world origin (0, 0, 0) using sphere SDF
+      const distanceFromCenter = length(positionGeometry);
+
+      // Normalize distance based on maxRadius
+      // Close to center = 0, at maxRadius = 1
+      const normalizedDistance = distanceFromCenter.div(float(1.3));
+
+      // Invert for emission: close to center = high emission, far = low emission
+      // Using smoothstep for a nice falloff
+      const emissionStrength = smoothstep(float(1.0), float(0.0), normalizedDistance).mul(float(1.0));
+
+      mat.colorNode = colorNode("#fff").mul(emissionStrength);
+      // mat.emissiveNode = colorNode("#fff").mul(emissionStrength);
+      // mat.roughness = 0.3;
+      // mat.metalness = 0.1;
+    },
+    [color, maxRadius]
+  );
+
+  const wireframeMaterial = useMaterial(
+    LineBasicNodeMaterial,
+    (mat) => {
+      mat.colorNode = colorNode("#000");
+    },
+    []
+  );
+
+
+
+
+  return (
+    <group>
+      <mesh
+        scale={0.02}
+        geometry={boxGeometry}
+        material={material}
+        position={[position.x, position.y, position.z]}
+        rotation={rotation}
+      />
+      <lineSegments
+        scale={0.0201}
+        geometry={boxEdgeGeometry}
+        material={wireframeMaterial}
+        position={[position.x, position.y, position.z]}
+        rotation={rotation}
+      />
+    </group>
+  );
+}
+
 interface BrainGraphProps {
   config: GraphConfig;
   color: string;
@@ -97,6 +192,35 @@ export function BrainGraph({
     return generateBrainGraph(config);
   }, [config, seed]);
 
+  // Extract spawn points from subBranches with deterministic random rotations
+  const subBranchSpawnData = useMemo(() => {
+    // Simple seeded random function for deterministic results
+    const seededRandom = (index: number, component: number) => {
+      const x = Math.sin(seed * 12.9898 + index * 78.233 + component * 43.758) * 43758.5453;
+      return x - Math.floor(x);
+    };
+
+    return graph.subBranches.map((branch, index) => {
+      // The first point of the branch is the spawn point
+      const spawnPoint = branch.points[0].clone();
+      
+      // Apply the same remap that's applied to the branch lines
+      const l = spawnPoint.length();
+      if (l >= 0.0001) {
+        const newL = Math.pow(l, 0.5);
+        spawnPoint.multiplyScalar(1 / l).multiplyScalar(newL);
+      }
+      
+      // Generate deterministic rotation based on seed and index
+      const rotation = new THREE.Euler(
+        seededRandom(index, 0) * Math.PI * 2,
+        seededRandom(index, 1) * Math.PI * 2,
+        seededRandom(index, 2) * Math.PI * 2
+      );
+      return { position: spawnPoint, rotation };
+    });
+  }, [graph.subBranches, seed]);
+
   return (
     <group>
       {graph.mainBranches.map((branch, i) => (
@@ -117,6 +241,15 @@ export function BrainGraph({
           opacity={opacity}
           resolution={resolution}
           isMainBranch={false}
+        />
+      ))}
+      {subBranchSpawnData.map((data, i) => (
+        <SubBranchBox
+          key={`box-${i}-${seed}`}
+          position={data.position}
+          rotation={data.rotation}
+          color={color}
+          maxRadius={config.maxRadius}
         />
       ))}
     </group>
