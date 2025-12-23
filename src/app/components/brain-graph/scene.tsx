@@ -35,7 +35,7 @@ export function Scene() {
       subBranchCurvature: { label: "Curvature", value: 0.8, min: 0, max: 2, step: 0.05 },
     }),
     Appearance: folder({
-      color: "#989898",
+      color: "#797979",
       opacity: { value: 1, min: 0, max: 1, step: 0.05 },
       resolution: { value: 30, min: 10, max: 200, step: 5 },
     }),
