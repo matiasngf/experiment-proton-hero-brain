@@ -11,17 +11,17 @@ export function Scene() {
 
   const controls = useControls({
     "Main Branches": folder({
-      mainBranchCount: { value: 12, min: 1, max: 50, step: 1 },
+      mainBranchCount: { label: "Count", value: 12, min: 1, max: 50, step: 1 },
       mainRadius: { value: 3, min: 0.5, max: 10, step: 0.1 },
       segments: { value: 8, min: 3, max: 20, step: 1 },
       curvature: { value: 0.5, min: 0, max: 2, step: 0.05 },
     }),
     "Sub Branches": folder({
-      subBranchCount: { value: 3, min: 0, max: 10, step: 1 },
-      maxRadius: { value: 4, min: 1, max: 15, step: 0.1 },
-      subBranchOffset: { value: 0.7, min: 0, max: 1, step: 0.05 },
-      subBranchSegments: { value: 6, min: 2, max: 15, step: 1 },
-      subBranchCurvature: { value: 0.6, min: 0, max: 2, step: 0.05 },
+      subBranchCount: { label: "Count", value: 3, min: 0, max: 10, step: 1 },
+      maxRadius: { label: "Max Radius", value: 4, min: 1, max: 15, step: 0.1 },
+      subBranchOffset: { label: "Offset", value: 0.7, min: 0, max: 1, step: 0.05 },
+      subBranchSegments: { label: "Segments", value: 6, min: 2, max: 15, step: 1 },
+      subBranchCurvature: { label: "Curvature", value: 0.6, min: 0, max: 2, step: 0.05 },
     }),
     Appearance: folder({
       color: "#000000",
@@ -29,6 +29,27 @@ export function Scene() {
       resolution: { value: 50, min: 10, max: 200, step: 5 },
     }),
     Regenerate: button(() => setSeed((s) => s + 1)),
+  });
+
+  // Separate hook for copy button to access controls values
+  useControls({
+    "Copy Settings": button(() => {
+      const settings = {
+        mainBranchCount: controls.mainBranchCount,
+        mainRadius: controls.mainRadius,
+        segments: controls.segments,
+        curvature: controls.curvature,
+        subBranchCount: controls.subBranchCount,
+        maxRadius: controls.maxRadius,
+        subBranchOffset: controls.subBranchOffset,
+        subBranchSegments: controls.subBranchSegments,
+        subBranchCurvature: controls.subBranchCurvature,
+        color: controls.color,
+        opacity: controls.opacity,
+        resolution: controls.resolution,
+      };
+      navigator.clipboard.writeText(JSON.stringify(settings, null, 2));
+    }),
   });
 
   const graphConfig: GraphConfig = useMemo(

@@ -8,6 +8,10 @@ export interface BranchConfig {
   stepLength: number;
   targetRadius?: number;
   maxRadius?: number;
+  /** Target direction to curve towards (for sub-branches) */
+  targetDirection?: THREE.Vector3;
+  /** How strongly to curve towards the target direction (0-1) */
+  targetInfluence?: number;
 }
 
 export interface BranchData {
@@ -32,12 +36,26 @@ export function randomDirection(): THREE.Vector3 {
  * Generate control points for a branch with soft direction changes
  */
 export function generateBranchPoints(config: BranchConfig): THREE.Vector3[] {
-  const { origin, direction, segments, curvature, stepLength } = config;
+  const { origin, direction, segments, curvature, stepLength, targetDirection, targetInfluence = 0 } = config;
 
   const points: THREE.Vector3[] = [origin.clone()];
   const currentDir = direction.clone().normalize();
 
   for (let i = 0; i < segments; i++) {
+    // If we have a target direction, blend towards it over segments
+    if (targetDirection && targetInfluence > 0) {
+      // Calculate progress (0 at start, 1 at end)
+      const progress = i / (segments - 1);
+      // Apply easing for smoother transition
+      const easedProgress = progress * progress;
+      // Calculate how much to influence this segment
+      const segmentInfluence = easedProgress * targetInfluence;
+      
+      // Slerp-like blend towards target direction
+      const blendedDir = currentDir.clone().lerp(targetDirection.clone().normalize(), segmentInfluence * 0.3);
+      currentDir.copy(blendedDir).normalize();
+    }
+
     // Create a random rotation axis perpendicular to current direction
     const randomAxis = randomDirection();
     const perpAxis = currentDir.clone().cross(randomAxis).normalize();
@@ -139,14 +157,21 @@ export function generateBranch(config: BranchConfig): BranchData | null {
   return { points, curve };
 }
 
+export interface SubBranchDirections {
+  /** Initial direction (tangent of parent curve) */
+  initial: THREE.Vector3;
+  /** Target direction to curve towards (perpendicular to tangent) */
+  target: THREE.Vector3;
+}
+
 /**
- * Get direction for a sub-branch at a given point along parent curve
+ * Get directions for a sub-branch at a given point along parent curve
+ * Returns initial direction (tangent) and target direction (perpendicular)
  */
-export function getSubBranchDirection(
+export function getSubBranchDirections(
   parentCurve: THREE.CatmullRomCurve3,
-  t: number,
-  offsetStrength: number
-): THREE.Vector3 {
+  t: number
+): SubBranchDirections {
   const tangent = parentCurve.getTangentAt(t);
 
   // Create a perpendicular vector
@@ -158,20 +183,17 @@ export function getSubBranchDirection(
   const normal = tangent.clone().cross(up).normalize();
   const binormal = tangent.clone().cross(normal).normalize();
 
-  // Random angle around the tangent
+  // Random angle around the tangent for the target perpendicular direction
   const angle = Math.random() * Math.PI * 2;
   const perpDir = normal
     .clone()
     .multiplyScalar(Math.cos(angle))
     .add(binormal.clone().multiplyScalar(Math.sin(angle)));
 
-  // Combine tangent with perpendicular direction
-  const direction = tangent
-    .clone()
-    .multiplyScalar(1 - offsetStrength)
-    .add(perpDir.multiplyScalar(offsetStrength));
-
-  return direction.normalize();
+  return {
+    initial: tangent.normalize(),
+    target: perpDir.normalize(),
+  };
 }
 
 export interface GraphConfig {
@@ -222,21 +244,19 @@ export function generateBrainGraph(config: GraphConfig): GeneratedGraph {
         // Pick a random point along the main branch (between 20% and 80%)
         const t = 0.2 + Math.random() * 0.6;
         const spawnPoint = branch.curve.getPointAt(t);
-        const subDirection = getSubBranchDirection(
-          branch.curve,
-          t,
-          config.subBranchOffset
-        );
+        const directions = getSubBranchDirections(branch.curve, t);
 
         const subStepLength = (config.maxRadius - config.mainRadius * 0.5) / config.subBranchSegments;
 
         const subBranch = generateBranch({
           origin: spawnPoint,
-          direction: subDirection,
+          direction: directions.initial, // Start aligned with parent tangent
           segments: config.subBranchSegments,
           curvature: config.subBranchCurvature,
           stepLength: subStepLength,
           maxRadius: config.maxRadius,
+          targetDirection: directions.target, // Curve towards perpendicular
+          targetInfluence: config.subBranchOffset, // Use offset as influence strength
         });
 
         if (subBranch) {
