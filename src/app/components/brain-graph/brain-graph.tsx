@@ -1,8 +1,9 @@
- 
-"use client";
+ "use client";
 
 import { useMemo } from "react";
 import * as THREE from "three";
+import { color as colorNode, float } from "three/tsl";
+import { LineBasicNodeMaterial } from "three/webgpu";
 import { BranchData, generateBrainGraph, GraphConfig } from "./utils";
 
 interface BranchLineProps {
@@ -13,16 +14,18 @@ interface BranchLineProps {
 }
 
 function branchRemap(points: THREE.Vector3[]): THREE.Vector3[] {
-  return points.map(point => {
-    const l = point.length()
+  return points.map((point) => {
+    const l = point.length();
+
+    // Skip remapping for points at or very near the origin to avoid NaN
+    if (l < 0.0001) return point;
 
     const newL = Math.pow(l, 0.5);
-    // newL = Math.pow(newL, 0.5);
 
-    point.multiplyScalar(1 / l).multiplyScalar(newL)
+    point.multiplyScalar(1 / l).multiplyScalar(newL);
 
-    return point
-  })
+    return point;
+  });
 }
 
 function BranchLine({ branch, color, opacity, resolution }: BranchLineProps) {
@@ -33,15 +36,17 @@ function BranchLine({ branch, color, opacity, resolution }: BranchLineProps) {
     return geo;
   }, [branch.curve, resolution]);
 
+  const material = useMemo(() => {
+    const mat = new LineBasicNodeMaterial();
+    mat.colorNode = colorNode(color);
+    mat.opacityNode = float(opacity);
+    mat.transparent = opacity < 1;
+    return mat;
+  }, [color, opacity]);
+
   return (
     // @ts-expect-error Three.js r150+: <line geometry={...}> TS error workaround (TS types lag behind)
-    <line geometry={geometry}>
-      <lineBasicMaterial
-        color={color}
-        opacity={opacity}
-        transparent={opacity < 1}
-      />
-    </line>
+    <line geometry={geometry} material={material} />
   );
 }
 

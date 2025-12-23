@@ -1,6 +1,8 @@
 "use client";
 
 import { Canvas } from "@react-three/fiber";
+import { Suspense } from "react";
+import { WebGPURenderer } from "three/webgpu";
 import { Scene } from "./scene";
 
 export function BrainCanvas() {
@@ -9,8 +11,18 @@ export function BrainCanvas() {
       <Canvas
         style={{ background: "#ffffff" }}
         camera={{ position: [0, 0, 10], fov: 50 }}
+        gl={async (props) => {
+          const renderer = new WebGPURenderer({
+            ...props,
+            antialias: true,
+          } as never);
+          await renderer.init();
+          return renderer;
+        }}
       >
-        <Scene />
+        <Suspense fallback={null}>
+          <Scene />
+        </Suspense>
       </Canvas>
     </div>
   );
