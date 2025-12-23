@@ -1,10 +1,38 @@
 "use client";
 
-import { OrbitControls } from "@react-three/drei";
+import { PerspectiveCamera } from "@react-three/drei";
+import { useFrame } from "@react-three/fiber";
 import { useControls, button, folder } from "leva";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { BrainGraph } from "./brain-graph";
 import { GraphConfig } from "./utils";
+import * as THREE from "three";
+
+function RotatingCamera() {
+  const cameraRef = useRef<THREE.PerspectiveCamera>(null);
+
+  useFrame(() => {
+    if (cameraRef.current) {
+      // Rotate camera around Y axis
+      const radius = 2; // distance from center (z position from initial config)
+      const speed = 0.2; // rotation speed
+      const angle = performance.now() * 0.001 * speed;
+      
+      cameraRef.current.position.x = Math.sin(angle) * radius;
+      cameraRef.current.position.z = Math.cos(angle) * radius;
+      cameraRef.current.lookAt(0, 0, 0);
+    }
+  });
+
+  return (
+    <PerspectiveCamera
+      ref={cameraRef}
+      makeDefault
+      position={[0, 0, 2]}
+      fov={50}
+    />
+  );
+}
 
 export function Scene() {
   const [seed, setSeed] = useState(0);
@@ -90,7 +118,8 @@ export function Scene() {
 
   return (
     <>
-      <OrbitControls autoRotate={false} />
+      <RotatingCamera />
+      {/* <OrbitControls autoRotate={false} /> */}
       <BrainGraph
         config={graphConfig}
         color={controls.color}
