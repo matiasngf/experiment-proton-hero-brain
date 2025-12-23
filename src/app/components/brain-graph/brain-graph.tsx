@@ -1,3 +1,4 @@
+ 
 "use client";
 
 import { useMemo } from "react";
@@ -33,6 +34,7 @@ function BranchLine({ branch, color, opacity, resolution }: BranchLineProps) {
   }, [branch.curve, resolution]);
 
   return (
+    // @ts-expect-error Three.js r150+: <line geometry={...}> TS error workaround (TS types lag behind)
     <line geometry={geometry}>
       <lineBasicMaterial
         color={color}

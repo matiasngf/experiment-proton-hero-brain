@@ -197,7 +197,8 @@ export function getSubBranchDirections(
 }
 
 export interface GraphConfig {
-  mainBranchCount: number;
+  icosahedronRadius: number;
+  icosahedronDetail: number;
   subBranchCount: number;
   mainRadius: number;
   maxRadius: number;
@@ -223,9 +224,31 @@ export function generateBrainGraph(config: GraphConfig): GeneratedGraph {
   const origin = new THREE.Vector3(0, 0, 0);
   const stepLength = config.mainRadius / config.segments;
 
-  // Generate main branches
-  for (let i = 0; i < config.mainBranchCount; i++) {
-    const direction = randomDirection();
+  // Create icosahedron geometry to get evenly distributed points
+  const icosahedron = new THREE.IcosahedronGeometry(
+    config.icosahedronRadius,
+    config.icosahedronDetail
+  );
+  const vertices = icosahedron.attributes.position.array;
+  
+
+  // Extract unique vertices as Vector3 array (geometry has duplicates per face)
+  const uniqueVertices = new Map<string, THREE.Vector3>();
+  for (let i = 0; i < vertices.length; i += 3) {
+    const vertex = new THREE.Vector3(vertices[i], vertices[i + 1], vertices[i + 2]);
+    // Use rounded coordinates as key to identify duplicates
+    const key = `${vertex.x.toFixed(6)},${vertex.y.toFixed(6)},${vertex.z.toFixed(6)}`;
+    if (!uniqueVertices.has(key)) {
+      uniqueVertices.set(key, vertex);
+    }
+  }
+  
+  const icosahedronVertices = Array.from(uniqueVertices.values());
+
+  // Generate main branches using all unique icosahedron vertices as directions
+  for (let i = 0; i < icosahedronVertices.length; i++) {
+    // Use the vertex as the direction (it's already on a sphere)
+    const direction = icosahedronVertices[i].clone().normalize();
 
     const branch = generateBranch({
       origin,
@@ -241,8 +264,13 @@ export function generateBrainGraph(config: GraphConfig): GeneratedGraph {
 
       // Generate sub-branches for this main branch
       for (let j = 0; j < config.subBranchCount; j++) {
-        // Pick a random point along the main branch (between 20% and 80%)
-        const t = 0.2 + Math.random() * 0.6;
+        // Better distribution: divide the branch into equal segments
+        // and add some randomness within each segment
+        const segmentSize = 1.0 / config.subBranchCount;
+        const segmentStart = j * segmentSize;
+        const segmentEnd = (j + 1) * segmentSize;
+        const t = segmentStart + Math.random() * (segmentEnd - segmentStart);
+        
         const spawnPoint = branch.curve.getPointAt(t);
         const directions = getSubBranchDirections(branch.curve, t);
 

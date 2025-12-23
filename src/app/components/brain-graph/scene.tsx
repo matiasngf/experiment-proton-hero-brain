@@ -9,52 +9,62 @@ import { GraphConfig } from "./utils";
 export function Scene() {
   const [seed, setSeed] = useState(0);
 
-  const controls = useControls({
+  const [controls] = useControls(() => ({
     "Main Branches": folder({
-      mainBranchCount: { label: "Count", value: 12, min: 1, max: 50, step: 1 },
-      mainRadius: { value: 3, min: 0.5, max: 10, step: 0.1 },
-      segments: { value: 8, min: 3, max: 20, step: 1 },
-      curvature: { value: 0.5, min: 0, max: 2, step: 0.05 },
+      // Base radius of the icosahedron used to distribute branch starting points
+      icosahedronRadius: { label: "Radius", value: 1, min: 0.01, max: 1, step: 0.01 },
+      // Subdivision level of the icosahedron (higher = more evenly distributed points and more branches)
+      icosahedronDetail: { label: "Detail", value: 1, min: 0, max: 3, step: 1 },
+      // Distance from center that each main branch should reach
+      mainRadius: { value: 3.4, min: 0.5, max: 10, step: 0.1 },
+      // Number of control points along each main branch (higher = smoother curves)
+      segments: { value: 3, min: 3, max: 20, step: 1 },
+      // How much each branch randomly bends as it grows (higher = more wiggly)
+      curvature: { value: 0.85, min: 0, max: 2, step: 0.05 },
     }),
     "Sub Branches": folder({
-      subBranchCount: { label: "Count", value: 3, min: 0, max: 10, step: 1 },
-      maxRadius: { label: "Max Radius", value: 4, min: 1, max: 15, step: 0.1 },
-      subBranchOffset: { label: "Offset", value: 0.7, min: 0, max: 1, step: 0.05 },
+      // Number of smaller branches spawned from each main branch
+      subBranchCount: { label: "Count", value: 4, min: 0, max: 10, step: 1 },
+      // Maximum distance from center that sub-branches can reach
+      maxRadius: { label: "Max Radius", value: 7.4, min: 1, max: 15, step: 0.1 },
+      // How strongly sub-branches curve away from their parent (0 = follow parent, 1 = perpendicular)
+      subBranchOffset: { label: "Offset", value: 0.35, min: 0, max: 1, step: 0.05 },
+      // Number of control points along each sub-branch (higher = smoother curves)
       subBranchSegments: { label: "Segments", value: 6, min: 2, max: 15, step: 1 },
-      subBranchCurvature: { label: "Curvature", value: 0.6, min: 0, max: 2, step: 0.05 },
+      // How much each sub-branch randomly bends as it grows
+      subBranchCurvature: { label: "Curvature", value: 0.8, min: 0, max: 2, step: 0.05 },
     }),
     Appearance: folder({
-      color: "#000000",
+      color: "#989898",
       opacity: { value: 1, min: 0, max: 1, step: 0.05 },
-      resolution: { value: 50, min: 10, max: 200, step: 5 },
+      resolution: { value: 30, min: 10, max: 200, step: 5 },
     }),
     Regenerate: button(() => setSeed((s) => s + 1)),
-  });
-
-  // Separate hook for copy button to access controls values
-  useControls({
-    "Copy Settings": button(() => {
+    "Copy Settings": button((get) => {
       const settings = {
-        mainBranchCount: controls.mainBranchCount,
-        mainRadius: controls.mainRadius,
-        segments: controls.segments,
-        curvature: controls.curvature,
-        subBranchCount: controls.subBranchCount,
-        maxRadius: controls.maxRadius,
-        subBranchOffset: controls.subBranchOffset,
-        subBranchSegments: controls.subBranchSegments,
-        subBranchCurvature: controls.subBranchCurvature,
-        color: controls.color,
-        opacity: controls.opacity,
-        resolution: controls.resolution,
+        icosahedronRadius: get("Main Branches.icosahedronRadius"),
+        icosahedronDetail: get("Main Branches.icosahedronDetail"),
+        mainRadius: get("Main Branches.mainRadius"),
+        segments: get("Main Branches.segments"),
+        curvature: get("Main Branches.curvature"),
+        subBranchCount: get("Sub Branches.subBranchCount"),
+        maxRadius: get("Sub Branches.maxRadius"),
+        subBranchOffset: get("Sub Branches.subBranchOffset"),
+        subBranchSegments: get("Sub Branches.subBranchSegments"),
+        subBranchCurvature: get("Sub Branches.subBranchCurvature"),
+        color: get("Appearance.color"),
+        opacity: get("Appearance.opacity"),
+        resolution: get("Appearance.resolution"),
       };
       navigator.clipboard.writeText(JSON.stringify(settings, null, 2));
+      console.log("Settings copied to clipboard:", settings);
     }),
-  });
+  }));
 
   const graphConfig: GraphConfig = useMemo(
     () => ({
-      mainBranchCount: controls.mainBranchCount,
+      icosahedronRadius: controls.icosahedronRadius,
+      icosahedronDetail: controls.icosahedronDetail,
       subBranchCount: controls.subBranchCount,
       mainRadius: controls.mainRadius,
       maxRadius: controls.maxRadius,
@@ -65,7 +75,8 @@ export function Scene() {
       subBranchCurvature: controls.subBranchCurvature,
     }),
     [
-      controls.mainBranchCount,
+      controls.icosahedronRadius,
+      controls.icosahedronDetail,
       controls.subBranchCount,
       controls.mainRadius,
       controls.maxRadius,
