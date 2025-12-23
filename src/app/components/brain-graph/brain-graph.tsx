@@ -1,10 +1,13 @@
- "use client";
+/* eslint-disable react-hooks/immutability */
+"use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import * as THREE from "three";
-import { color as colorNode, float, attribute, smoothstep, length, positionGeometry } from "three/tsl";
-import { LineBasicNodeMaterial, MeshBasicNodeMaterial, MeshLambertNodeMaterial, MeshPhysicalNodeMaterial } from "three/webgpu";
+import { color as colorNode, float, attribute, smoothstep, length, positionGeometry, abs, sub, uniform } from "three/tsl";
+import { LineBasicNodeMaterial, MeshBasicNodeMaterial } from "three/webgpu";
 import { useMaterial } from "@/lib/tsl/use-material";
+import { useUniforms } from "@/lib/tsl/use-uniforms";
+import { useFrame } from "@react-three/fiber";
 import { BranchData, generateBrainGraph, GraphConfig } from "./utils";
 
 interface BranchLineProps {
@@ -81,6 +84,8 @@ interface SubBranchBoxProps {
   rotation: THREE.Euler;
   color: string;
   maxRadius: number;
+  branchIndex: number;
+  seed: number;
 }
 const boxGeometry = new THREE.BoxGeometry(1, 1, 1)
 // Create the corner/edges geometry ("wireframe" box of just line segments)
@@ -115,12 +120,32 @@ const boxEdgeGeometry = (() => {
 })();
 
 
-function SubBranchBox({ position, rotation, color, maxRadius }: SubBranchBoxProps) {
+function SubBranchBox({ position, rotation, color, maxRadius, branchIndex, seed }: SubBranchBoxProps) {
+  
+  // Create random time offset for this branch
+  const randomOffset = useMemo(() => {
+    const x = Math.sin(seed * 12.9898 + branchIndex * 78.233 + 99.456) * 43758.5453;
+    return (x - Math.floor(x)) * 5.0;
+  }, [branchIndex, seed]);
+
+  // Create uniforms for pulse animation
+  const uniforms = useUniforms(() => ({
+    pulsePosition: uniform(0.0), // 0 to 1
+  }));
+
+  // Animate pulse position with random offset
+  useFrame(({ clock }) => {
+    const time = clock.getElapsedTime() + randomOffset;
+    const pulseSpeed = 0.5; // How fast the pulse travels
+    const pulseCycle = 3.0; // Duration of one complete pulse cycle in seconds
+    
+    // Create a repeating pulse that goes from 0 to 1
+    uniforms.pulsePosition.value = ((time * pulseSpeed) % pulseCycle) / pulseCycle;
+  });
 
   const material = useMaterial(
     MeshBasicNodeMaterial,
     (mat) => {
-
       // Calculate distance from world origin (0, 0, 0) using sphere SDF
       const distanceFromCenter = length(positionGeometry);
 
@@ -130,14 +155,33 @@ function SubBranchBox({ position, rotation, color, maxRadius }: SubBranchBoxProp
 
       // Invert for emission: close to center = high emission, far = low emission
       // Using smoothstep for a nice falloff
-      const emissionStrength = smoothstep(float(1.0), float(0.0), normalizedDistance).mul(float(1.0));
+      const baseEmission = smoothstep(float(1.0), float(0.0), normalizedDistance);
+
+      // Pulse calculation
+      // Remap pulse position (0-1) to actual distance (0 to maxRadius)
+      const pulsePos = uniforms.pulsePosition.mul(float(maxRadius));
+      
+      // Calculate distance between this box and the pulse wavefront
+      const distToPulse = abs(sub(distanceFromCenter, pulsePos)).pow(2)
+      
+      // Pulse width - how wide the pulse effect is
+      const pulseWidth = float(0.5);
+      
+      // Create pulse multiplier that goes 0→3→0
+      // When distToPulse is 0, we're at peak (3), when it's > pulseWidth, we're at 0
+      const pulseStrength = smoothstep(pulseWidth, float(0.0), distToPulse).mul(float(3.0));
+      
+      // Final pulse multiplier: 1.0 when no pulse, up to 3.0 during pulse
+      const pulseMult = float(0).add(pulseStrength.mul(float(2.0)));
+
+      const emissionStrength = baseEmission.mul(pulseMult).add(0.2)
 
       mat.colorNode = colorNode("#fff").mul(emissionStrength);
       // mat.emissiveNode = colorNode("#fff").mul(emissionStrength);
       // mat.roughness = 0.3;
       // mat.metalness = 0.1;
     },
-    [color, maxRadius]
+    [color, maxRadius, uniforms]
   );
 
   const wireframeMaterial = useMaterial(
@@ -217,7 +261,7 @@ export function BrainGraph({
         seededRandom(index, 1) * Math.PI * 2,
         seededRandom(index, 2) * Math.PI * 2
       );
-      return { position: spawnPoint, rotation };
+      return { position: spawnPoint, rotation, branchIndex: index };
     });
   }, [graph.subBranches, seed]);
 
@@ -250,6 +294,8 @@ export function BrainGraph({
           rotation={data.rotation}
           color={color}
           maxRadius={config.maxRadius}
+          branchIndex={data.branchIndex}
+          seed={seed}
         />
       ))}
     </group>

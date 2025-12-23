@@ -15,7 +15,7 @@ function RotatingCamera() {
     if (cameraRef.current) {
       // Rotate camera around Y axis
       const radius = 2; // distance from center (z position from initial config)
-      const speed = 0.2; // rotation speed
+      const speed = 0.05; // rotation speed
       const angle = performance.now() * 0.001 * speed;
       
       cameraRef.current.position.x = Math.sin(angle) * radius;
