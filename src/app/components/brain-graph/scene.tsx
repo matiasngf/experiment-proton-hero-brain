@@ -42,17 +42,17 @@ export function Scene() {
       // Base radius of the icosahedron used to distribute branch starting points
       icosahedronRadius: { label: "Radius", value: 1, min: 0.01, max: 1, step: 0.01 },
       // Subdivision level of the icosahedron (higher = more evenly distributed points and more branches)
-      icosahedronDetail: { label: "Detail", value: 1, min: 0, max: 3, step: 1 },
+      icosahedronDetail: { label: "Detail", value: 0, min: 0, max: 3, step: 1 },
       // Distance from center that each main branch should reach
       mainRadius: { value: 3.4, min: 0.5, max: 10, step: 0.1 },
       // Number of control points along each main branch (higher = smoother curves)
       segments: { value: 3, min: 3, max: 20, step: 1 },
       // How much each branch randomly bends as it grows (higher = more wiggly)
-      curvature: { value: 0.85, min: 0, max: 2, step: 0.05 },
+      curvature: { value: 1.3, min: 0, max: 2, step: 0.05 },
     }),
     "Sub Branches": folder({
       // Number of smaller branches spawned from each main branch
-      subBranchCount: { label: "Count", value: 4, min: 0, max: 10, step: 1 },
+      subBranchCount: { label: "Count", value: 9, min: 0, max: 10, step: 1 },
       // Maximum distance from center that sub-branches can reach
       maxRadius: { label: "Max Radius", value: 7.4, min: 1, max: 15, step: 0.1 },
       // How strongly sub-branches curve away from their parent (0 = follow parent, 1 = perpendicular)
@@ -60,7 +60,7 @@ export function Scene() {
       // Number of control points along each sub-branch (higher = smoother curves)
       subBranchSegments: { label: "Segments", value: 6, min: 2, max: 15, step: 1 },
       // How much each sub-branch randomly bends as it grows
-      subBranchCurvature: { label: "Curvature", value: 0.8, min: 0, max: 2, step: 0.05 },
+      subBranchCurvature: { label: "Curvature", value: 0.35, min: 0, max: 2, step: 0.05 },
     }),
     Appearance: folder({
       color: "#797979",
