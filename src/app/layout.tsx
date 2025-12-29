@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Header } from "../components/layout/header";
 
 export const metadata: Metadata = {
-  title: "Brain Graph Visualization",
-  description: "3D brain/graph structure visualization with Three.js",
+  title: "Experiments",
+  description: "A collection of experiments",
 };
 
 export default function RootLayout({
@@ -13,7 +14,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Header />
+        {children}
+      </body>
     </html>
   );
 }
