@@ -2,5 +2,17 @@
   {
     "url": "/brain",
     "name": "Brain"
+  },
+  {
+    "url": "/neuron-graph-clustered",
+    "name": "Neuron Graph Clustered"
+  },
+  {
+    "url": "/neuron-graph-uniform",
+    "name": "Neuron Graph Uniform"
+  },
+  {
+    "url": "/cube-graph",
+    "name": "Cube Graph"
   }
 ]
