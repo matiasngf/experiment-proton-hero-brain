@@ -10,5 +10,9 @@
   {
     "url": "/neuron-graph-uniform",
     "name": "Neuron Graph Uniform"
+  },
+  {
+    "url": "/cube-graph",
+    "name": "Cube Graph"
   }
 ]
